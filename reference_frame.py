@@ -2,10 +2,7 @@
 Handle reference-frame changes between different coordinate systems.
 '''
 import numpy as np
-
-OBLATENESS_EARTH = 0.0033528
-EARTH_RADIUS = 6378.0
-
+import orb_mech_constants as omc
 
 def observation_site_ECI_vector(latitude_deg,datum_elevation_km,loc_sidereal_deg):
     '''
@@ -19,7 +16,7 @@ def observation_site_ECI_vector(latitude_deg,datum_elevation_km,loc_sidereal_deg
     latitude_rad = np.radians(latitude_deg)
     loc_sidereal_rad = np.radians(loc_sidereal_deg)
 
-    mag_R_phi = EARTH_RADIUS / np.sqrt(1 - (2*OBLATENESS_EARTH - OBLATENESS_EARTH**2) * np.sin(latitude_rad)**2)
+    mag_R_phi = omc.RADIUS_EARTH / np.sqrt(1 - (2*omc.OBLATENESS_EARTH - omc.OBLATENESS_EARTH**2) * np.sin(latitude_rad)**2)
 
     I_component = (mag_R_phi + datum_elevation_km) \
         * np.cos(latitude_rad) \
@@ -27,7 +24,7 @@ def observation_site_ECI_vector(latitude_deg,datum_elevation_km,loc_sidereal_deg
     J_component = (mag_R_phi + datum_elevation_km) \
         * np.cos(latitude_rad) \
             * (np.sin(loc_sidereal_rad))
-    K_component = (mag_R_phi * (1 - OBLATENESS_EARTH)**2 + datum_elevation_km) \
+    K_component = (mag_R_phi * (1 - omc.OBLATENESS_EARTH)**2 + datum_elevation_km) \
         * np.sin(latitude_rad)
 
     return np.array(
@@ -91,3 +88,29 @@ def ENZ_to_ECI_matrix(latitude_deg,loc_sidereal_deg):
     Returns transformation matrix from ENZ to ECI frame.
     '''
     return ECI_to_ENZ_matrix(latitude_deg,loc_sidereal_deg).T
+
+def observation_to_ECI_position_vector(
+    latitude_deg,datum_elevation_km,loc_sidereal_deg,
+    azimuth_deg,elevation_deg,range_km
+):
+    '''
+    Returns position vector of observation site in ECI frame.
+    '''
+    return observation_site_ECI_vector(latitude_deg,datum_elevation_km,loc_sidereal_deg) \
+        + ENZ_to_ECI_matrix(latitude_deg,loc_sidereal_deg) \
+            @ target_track_ENZ_vector(azimuth_deg,elevation_deg,range_km)
+
+if __name__ == "__main__":
+    latitude_deg = 0.0
+    datum_elevation_km = 0.0
+    loc_sidereal_deg = 270.0
+    azimuth_deg = 0.0
+    elevation_deg = 0.0
+    range_km = 0.0
+
+    position = observation_to_ECI_position_vector(
+        latitude_deg,datum_elevation_km,loc_sidereal_deg,
+        azimuth_deg,elevation_deg,range_km
+    )
+
+    print(position)
