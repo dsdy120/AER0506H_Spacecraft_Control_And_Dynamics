@@ -2,18 +2,29 @@ import numpy as np
 import orb_mech_constants as omc
 
 class OrbitalElements:
-    def __init__(self,a,e,i,Omega,omega,nu):
+    def __init__(self,a,e,i,Omega,omega,theta):
         self.a = a
         self.e = e
         self.i = i
         self.Omega = Omega
         self.omega = omega
-        self.nu = nu
+        self.theta = theta
+
+    def __str__(self):
+        return f"a: {self.a}\n\
+e: {self.e}\n\
+i: {np.rad2deg(self.i)}\N{DEGREE SIGN}\n\
+RAAN: {np.rad2deg(self.Omega)}\N{DEGREE SIGN}\n\
+Arg Pe: {np.rad2deg(self.omega)}\N{DEGREE SIGN}\n\
+True A: {np.rad2deg(self.theta)}\N{DEGREE SIGN}"
 
 class StateVector:
     def __init__(self,R: np.ndarray,V: np.ndarray):
         self.R = R
         self.V = V
+
+    def __str__(self):
+        return f"R: {self.R} ({np.linalg.norm(self.R)})\nV: {self.V} ({np.linalg.norm(self.V)})"
 
 def orbital_elements_from_state_vector(state_vector: StateVector):
     '''
@@ -36,11 +47,11 @@ def orbital_elements_from_state_vector(state_vector: StateVector):
     else:
         omega = 2*np.pi - np.arccos(np.dot(n,e) / (np.linalg.norm(n) * np.linalg.norm(e)))
     if np.dot(R,V) >= 0:
-        nu = np.arccos(np.dot(e,R) / (np.linalg.norm(e) * np.linalg.norm(R)))
+        theta = np.arccos(np.dot(e,R) / (np.linalg.norm(e) * np.linalg.norm(R)))
     else:
-        nu = 2*np.pi - np.arccos(np.dot(e,R) / (np.linalg.norm(e) * np.linalg.norm(R)))
+        theta = 2*np.pi - np.arccos(np.dot(e,R) / (np.linalg.norm(e) * np.linalg.norm(R)))
 
-    return OrbitalElements(a,np.linalg.norm(e),i,Omega,omega,nu)
+    return OrbitalElements(a,np.linalg.norm(e),i,Omega,omega,theta)
 
 def state_vector_from_orbital_elements(orbital_elements: OrbitalElements):
     '''
@@ -51,7 +62,7 @@ def state_vector_from_orbital_elements(orbital_elements: OrbitalElements):
     i = orbital_elements.i
     Omega = orbital_elements.Omega
     omega = orbital_elements.omega
-    nu = orbital_elements.nu
+    nu = orbital_elements.theta
 
     p = a * (1 - e**2)
     R = p / (1 + e * np.cos(nu)) * np.array([np.cos(nu),np.sin(nu),0])
@@ -66,4 +77,34 @@ def gibbs_solver(R1,R2,R3):
     '''
     Returns orbital elements given 3 position vectors.
     '''
+    print(f"R1: {R1} ({np.linalg.norm(R1)})")
+    print(f"R2: {R2} ({np.linalg.norm(R2)})")
+    print(f"R3: {R3} ({np.linalg.norm(R3)})")
+
+    not_coplanar = np.dot(
+        R1/np.linalg.norm(R1),
+        np.cross(R2,R3)/np.linalg.norm(np.cross(R2,R3))
+    )
+
+    print(f"Coplanar deviation: {not_coplanar}")
+
+    N_hat = np.linalg.norm(R1) * np.cross(R2,R3)\
+        + np.linalg.norm(R2) * np.cross(R3,R1)\
+            + np.linalg.norm(R3) * np.cross(R1,R2)
     
+    D_hat = np.cross(R1,R2) + np.cross(R2,R3) + np.cross(R3,R1)
+    S_hat = R1 * (np.linalg.norm(R2) - np.linalg.norm(R3))\
+        + R2 * (np.linalg.norm(R3) - np.linalg.norm(R1))\
+            + R3 * (np.linalg.norm(R1) - np.linalg.norm(R2))
+
+    N = np.linalg.norm(N_hat)
+    D = np.linalg.norm(D_hat)
+
+    V2 = (omc.MU_EARTH / (N*D))**0.5\
+        * (np.cross(D_hat,R2)/np.linalg.norm(R2)+S_hat)
+    
+    state_vector = StateVector(R2,V2)
+    print(state_vector)
+
+    elements = orbital_elements_from_state_vector(state_vector)
+    return elements

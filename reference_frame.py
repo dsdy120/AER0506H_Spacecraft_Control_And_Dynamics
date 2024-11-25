@@ -96,6 +96,8 @@ def observation_to_ECI_position_vector(
     '''
     Returns position vector of observation site in ECI frame.
     '''
+    print(observation_site_ECI_vector(latitude_deg,datum_elevation_km,loc_sidereal_deg))
+
     return observation_site_ECI_vector(latitude_deg,datum_elevation_km,loc_sidereal_deg) \
         + ENZ_to_ECI_matrix(latitude_deg,loc_sidereal_deg) \
             @ target_track_ENZ_vector(azimuth_deg,elevation_deg,range_km)
